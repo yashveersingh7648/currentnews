@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Sitemap: https://currentnews.onrender.com/sitemap.xml
+Sitemap: https://currentnews.onrender.com/news-sitemap.xml

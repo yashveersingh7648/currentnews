@@ -1,24 +1,26 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, Route, Routes, useParams } from "react-router-dom";
 import { API, mediaUrl, request } from "./api.js";
+import { setPageSEO } from "./seo.js";
 
 const categories = ["All", "India", "World", "Technology", "Education", "Business", "Sports"];
 const fmtDate = (value) => value ? new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "Latest update";
 
 function Header() {
   return <><div className="top-strip"><div className="wrap top-strip-inner"><span><i className="ticker-live"/> LIVE NEWSROOM</span><span>Clear facts. Useful context. Updated daily.</span></div></div><header className="site-header"><div className="wrap header-inner">
-    <Link to="/" className="brand"><span className="brand-mark">D</span><span>DAILY CURRENT<small>NEWS • EXPLAINERS • UPDATES</small></span></Link>
+    <Link to="/" className="brand"><span className="brand-mark">D</span><span>CURRENT NEWS<small>NEWS • EXPLAINERS • UPDATES</small></span></Link>
     <nav><Link to="/">Latest News</Link><Link to="/admin">Admin</Link></nav>
   </div></header></>;
 }
 function Media({ article, large = false }) {
-  if (!article?.media_url) return <div className={`media-placeholder ${large ? "large" : ""}`}><span>DAILY CURRENT</span></div>;
+  if (!article?.media_url) return <div className={`media-placeholder ${large ? "large" : ""}`}><span>CURRENT NEWS</span></div>;
   const src = mediaUrl(article.media_url);
   return article.media_type === "video"
     ? <video className={`article-media ${large ? "large" : ""}`} src={src} controls preload="metadata" />
     : <img className={`article-media ${large ? "large" : ""}`} src={src} alt={article.title} loading="lazy" />;
 }
 function Home() {
+  useEffect(() => { setPageSEO({ title: "Current News — Latest News, India and World Updates", description: "Read the latest news, explainers and updates from India and around the world on Current News.", path: "/" }); }, []);
   const tracked = useRef(false);
   const [articles, setArticles] = useState([]);
   const [category, setCategory] = useState("All");
@@ -40,7 +42,7 @@ function Home() {
     {error && <div className="notice error">{error}. Check that the backend is running.</div>}
     {!error && articles.length === 0 && <div className="empty"><div className="empty-icon">✦</div><h3>Your newsroom starts here</h3><p>No published stories yet. Log in to the admin dashboard to create your first article.</p><Link className="button" to="/admin">Open Admin Dashboard</Link></div>}
     <div className="news-grid">{articles.map((a, i) => <article className={`news-card ${i===0?"featured":""}`} key={a.id}>
-      <Link to={`/news/${a.slug}`} className="card-media"><Media article={a}/></Link><div className="card-copy"><div className="meta"><span>{a.category}</span><span>{fmtDate(a.published_at)}</span></div><h3><Link to={`/news/${a.slug}`}>{a.title}</Link></h3><p>{a.excerpt || a.content.slice(0, 150)}</p><Link className="read-more" to={`/news/${a.slug}`}>Read story ↗</Link></div>
+      <a href={`/news/${a.slug}`} className="card-media"><Media article={a}/></a><div className="card-copy"><div className="meta"><span>{a.category}</span><span>{fmtDate(a.published_at)}</span></div><h3><a href={`/news/${a.slug}`}>{a.title}</a></h3><p>{a.excerpt || a.content.slice(0, 150)}</p><a className="read-more" href={`/news/${a.slug}`}>Read story ↗</a></div>
     </article>)}</div>
   </main><Footer/></>;
 }
@@ -50,7 +52,8 @@ function ArticlePage() {
   const [article, setArticle] = useState(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    request(`/api/articles/slug/${encodeURIComponent(slug)}`).then(setArticle).catch(e => setError(e.message));
+    setPageSEO({ title: "Loading story | Current News", description: "Read the latest story on Current News.", path: `/news/${slug}`, type: "article" });
+    request(`/api/articles/slug/${encodeURIComponent(slug)}`).then(data => { setArticle(data); setPageSEO({ title: `${data.title} | Current News`, description: data.excerpt || data.content, path: `/news/${data.slug}`, image: mediaUrl(data.media_url), type: "article", article: data }); }).catch(e => setError(e.message));
     if (trackedSlug.current !== slug) {
       trackedSlug.current = slug;
       let sessionId = sessionStorage.getItem("news_analytics_session");
@@ -60,7 +63,7 @@ function ArticlePage() {
   }, [slug]);
   if (error) return <><Header/><main className="wrap empty"><h2>Story not found</h2><p>{error}</p><Link to="/">Back to latest news</Link></main></>;
   if (!article) return <><Header/><main className="wrap loading">Loading story…</main></>;
-  return <><Header/><main className="wrap article-layout"><article className="article-page"><Link to="/" className="back-link">← All news</Link><div className="meta"><span>{article.category}</span><span>{fmtDate(article.published_at)}</span></div><h1>{article.title}</h1><p className="article-deck">{article.excerpt}</p><div className="byline">By <strong>{article.author}</strong> · Updated {fmtDate(article.updated_at)}</div><Media article={article} large/><div className="article-content">{article.content.split(/\n{2,}/).map((p,i)=><p key={i}>{p}</p>)}</div>{article.source_url && <p className="source">Source: <a href={article.source_url} target="_blank" rel="noreferrer">View original source ↗</a></p>}<div className="editorial-note">Our newsroom aims to publish accurate information. Please contact the editor to report a correction.</div></article><aside><span className="eyebrow">DAILY CURRENT</span><h3>Stay informed.</h3><p>Read the latest stories from our newsroom.</p><Link to="/" className="button button-light">More stories</Link></aside></main><Footer/></>;
+  return <><Header/><main className="wrap article-layout"><article className="article-page"><Link to="/" className="back-link">← All news</Link><div className="meta"><span>{article.category}</span><span>{fmtDate(article.published_at)}</span></div><h1>{article.title}</h1><p className="article-deck">{article.excerpt}</p><div className="byline">By <strong>{article.author}</strong> · Updated {fmtDate(article.updated_at)}</div><Media article={article} large/><div className="article-content">{article.content.split(/\n{2,}/).map((p,i)=><p key={i}>{p}</p>)}</div>{article.source_url && <p className="source">Source: <a href={article.source_url} target="_blank" rel="noreferrer">View original source ↗</a></p>}<div className="editorial-note">Our newsroom aims to publish accurate information. Please contact the editor to report a correction.</div></article><aside><span className="eyebrow">CURRENT NEWS</span><h3>Stay informed.</h3><p>Read the latest stories from our newsroom.</p><Link to="/" className="button button-light">More stories</Link></aside></main><Footer/></>;
 }
 function Admin() {
   const [token, setToken] = useState(() => sessionStorage.getItem("news_token") || "");
@@ -164,7 +167,7 @@ function Admin() {
       <div className="admin-list">{articles.map(a=><div className="admin-story" key={a.id}><div className="admin-story-copy"><span className={`status ${a.status}`}>{a.status}</span><strong>{a.title}</strong><small>{a.category} · {fmtDate(a.updated_at)}</small>{a.status==="published"&&<Link to={`/news/${a.slug}`} target="_blank">View live story ↗</Link>}</div><div className="story-actions"><button onClick={()=>editArticle(a)}>Edit</button><button className="danger-button" onClick={()=>remove(a.id)}>Delete</button></div></div>)}</div>
     </section></div></main><Footer/></>;
 }
-function Footer() { return <footer className="site-footer"><div className="wrap footer-main"><div><Link to="/" className="brand footer-brand"><span className="brand-mark">D</span><span>DAILY CURRENT<small>NEWS • EXPLAINERS • UPDATES</small></span></Link><p>Clear facts. Useful context. A smarter daily briefing.</p></div><div className="footer-links"><strong>Explore</strong><Link to="/">Latest news</Link><Link to="/admin">Newsroom login</Link></div><div className="footer-links"><strong>Editorial</strong><span>Verify before publishing</span><span>Credit and rights matter</span></div></div><div className="wrap footer-bottom"><span>© {new Date().getFullYear()} Daily Current. All rights reserved.</span><span>Reporting responsibly starts with us.</span></div></footer>; }
+function Footer() { return <footer className="site-footer"><div className="wrap footer-main"><div><Link to="/" className="brand footer-brand"><span className="brand-mark">D</span><span>CURRENT NEWS<small>NEWS • EXPLAINERS • UPDATES</small></span></Link><p>Clear facts. Useful context. A smarter daily briefing.</p></div><div className="footer-links"><strong>Explore</strong><Link to="/">Latest news</Link><Link to="/admin">Newsroom login</Link></div><div className="footer-links"><strong>Editorial</strong><span>Verify before publishing</span><span>Credit and rights matter</span></div></div><div className="wrap footer-bottom"><span>© {new Date().getFullYear()} Current News. All rights reserved.</span><span>Reporting responsibly starts with us.</span></div></footer>; }
 export default function App() {
   return <Routes><Route path="/" element={<Home/>}/><Route path="/news/:slug" element={<ArticlePage/>}/><Route path="/admin" element={<Admin/>}/><Route path="*" element={<><Header/><main className="wrap empty"><h2>Page not found</h2><Link to="/">Return home</Link></main></>}/></Routes>;
 }

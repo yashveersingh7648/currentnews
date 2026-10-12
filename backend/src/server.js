@@ -16,14 +16,32 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const rssParser = new Parser({ timeout: 8000 });
 const PORT = Number(process.env.PORT || 5000);
-const uploadsDir = path.resolve(__dirname, "../uploads");
+const uploadsDir = path.resolve(process.env.UPLOADS_DIR || path.resolve(__dirname, "../uploads"));
 fs.mkdirSync(uploadsDir, { recursive: true });
 
 if (!process.env.JWT_SECRET) {
   console.error("JWT_SECRET is missing. Set it in backend/.env");
   process.exit(1);
 }
-app.use(cors({ origin: (process.env.FRONTEND_ORIGIN || "http://localhost:5173").split(",").map(s => s.trim()), credentials: false }));
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map(origin => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+const corsOptions = {
+  origin(origin, callback) {
+    // Requests without an Origin header (for example health checks) are allowed.
+    if (!origin || allowedOrigins.includes(origin.replace(/\/+$/, ""))) {
+      return callback(null, true);
+    }
+    console.warn(`[CORS] Blocked origin: ${origin}`);
+    return callback(null, false);
+  },
+  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "2mb" }));
 app.use("/uploads", express.static(uploadsDir, { fallthrough: true, maxAge: "1h" }));
 
